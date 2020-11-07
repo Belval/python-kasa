@@ -137,6 +137,10 @@ class Discover:
 
     DISCOVERY_QUERY = {
         "system": {"get_sysinfo": None},
+    }
+
+    COMPLETE_DISCOVERY_QUERY = {
+        "system": {"get_sysinfo": None},
         "emeter": {"get_realtime": None},
         "smartlife.iot.dimmer": {"get_dimmer_parameters": None},
         "smartlife.iot.common.emeter": {"get_realtime": None},
@@ -198,16 +202,20 @@ class Discover:
         return protocol.discovered_devices
 
     @staticmethod
-    async def discover_single(host: str) -> SmartDevice:
+    async def discover_single(host: str, complete: bool) -> SmartDevice:
         """Discover a single device by the given IP address.
 
         :param host: Hostname of device to query
+        :param complete: Whether to discover only with get_sysinfo or all options
         :rtype: SmartDevice
         :return: Object for querying/controlling found device.
         """
         protocol = TPLinkSmartHomeProtocol()
 
-        info = await protocol.query(host, Discover.DISCOVERY_QUERY)
+        if complete:
+            info = await protocol.query(host, Discover.COMPLETE_DISCOVERY_QUERY)
+        else:
+            info = await protocol.query(host, Discover.DISCOVERY_QUERY)
 
         device_class = Discover._get_device_class(info)
         if device_class is not None:
@@ -231,10 +239,7 @@ class Discover:
         else:
             raise SmartDeviceException("No 'system' nor 'get_sysinfo' in response")
 
-        if (
-            "smartlife.iot.dimmer" in info
-            and "get_dimmer_parameters" in info["smartlife.iot.dimmer"]
-        ):
+        if "Dimmer" in sysinfo["dev_name"]:
             return SmartDimmer
 
         elif "smartplug" in type_.lower() and "children" in sysinfo:
